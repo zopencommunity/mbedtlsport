@@ -1,0 +1,85 @@
+# bump: mbedtls3.6.6-version /MBEDTLS3.6.6_VERSION="(.*)"/ https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls>
+# MBEDTLS3.6.6_VERSION="3.6.6"
+
+###
+### Build control file for the mbedtls3.6.6 port
+###
+export ZOPEN_BUILD_LINE="STABLE"
+export ZOPEN_STABLE_URL="https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.6/mbedtls-3.6.6.tar.bz2"
+export ZOPEN_STABLE_DEPS="bash check_python curl bzip2 perl check_clang coreutils make"
+release=${ZOPEN_STABLE_URL%/*}
+release=${release##*/}
+#echo "release= ${release}" 
+# mbedtls does not use ./configure for the Makefile build.
+export ZOPEN_CONFIGURE="skip"
+
+# Build with make.
+export ZOPEN_MAKE="make"
+export ZOPEN_MAKE_OPTS="CC=clang DESTDIR=\${ZOPEN_INSTALL_DIR}"
+export ZOPEN_EXTRA_CFLAGS="-D_XOPEN_SOURCE=600 -D_ALL_SOURCE -D_OPEN_SYS_FILE_EXT=1 -DMBEDTLS_PLATFORM_IS_UNIXLIKE"
+# Run make check.
+export ZOPEN_CHECK="make"
+export ZOPEN_CHECK_OPTS="check CC=clang"
+
+# Install with make install, using zopen's install prefix.
+export ZOPEN_INSTALL="make"
+export ZOPEN_INSTALL_OPTS="install DESTDIR=\${ZOPEN_INSTALL_DIR} CC=clang"
+
+zopen_init()
+{
+ 
+}
+zopen_post_extract()
+{
+   srcdir="$(pwd)/files"
+   dstdir="$(pwd)/${release}/library"
+
+   echo "pwd=$(pwd)"
+   echo "dstdir=${dstdir}"
+
+#   ls -ld "${release}" "${dstdir}" || return 1
+
+   cp "${srcdir}/hardware_entropy_zos.c" "${dstdir}/"
+   cp "${srcdir}/clock_gettime_zos.c"    "${dstdir}/"
+   cp "${srcdir}/hardware_entropy_zos.h" "${dstdir}/"
+   cp "${srcdir}/clock_gettime_zos.h"    "${dstdir}/"
+}
+zopen_check_results()
+{
+    chk="$1/$2_check.log"
+
+    totalTests=$(grep -E -c '^test_suite_.*[[:space:]]+(PASS|FAIL)$' "$chk")
+    success=$(grep -E -c '^test_suite_.*[[:space:]]+PASS$' "$chk")
+    failures=$(grep -E -c '^test_suite_.*[[:space:]]+FAIL$' "$chk")
+
+    echo "actualFailures:$failures"
+    echo "totalTests:$totalTests"
+    echo "expectedFailures:0"
+
+    if [ "$failures" -gt 0 ]; then
+        echo "Failed suites:"
+        grep -E '^test_suite_.*[[:space:]]+FAIL$' "$chk" | awk '{print $1}'
+    fi
+}
+
+zopen_append_to_env()
+{
+cat <<ZZ
+if [ ! -z "\$ZOPEN_IN_ZOPEN_BUILD" ]; then
+  export ZOPEN_EXTRA_CFLAGS="\${ZOPEN_EXTRA_CFLAGS} -I\$PWD/include"
+  export ZOPEN_EXTRA_CXXFLAGS="\${ZOPEN_EXTRA_CXXFLAGS}	-I\$PWD/include"
+  export ZOPEN_EXTRA_LDFLAGS="\${ZOPEN_EXTRA_LDFLAGS} -L\$PWD/lib"
+  export ZOPEN_EXTRA_LIBS="\${ZOPEN_EXTRA_LIBS}	-lbsd"
+fi
+ZZ
+}
+zopen_get_version()
+{
+    awk '
+        /MBEDTLS_VERSION_STRING[[:space:]]+"/ {
+            gsub(/"/,"",$3)
+            print $3
+            exit
+        }
+    ' ./include/mbedtls/build_info.h
+}

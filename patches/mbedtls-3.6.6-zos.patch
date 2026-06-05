@@ -1,0 +1,180 @@
+diff --git a/Makefile b/Makefile
+index 22a2bd2..f75a1eb 100644
+--- a/Makefile
++++ b/Makefile
+@@ -23,7 +23,7 @@ endif
+ 
+ .SILENT:
+ 
+-.PHONY: all no_test programs lib tests install uninstall clean test check lcov apidoc apidoc_clean
++.PHONY: all no_test programs lib tests install uninstall clean test check lcov 
+ 
+ all: programs tests
+ 	$(MAKE) post_build
+diff --git a/include/mbedtls/mbedtls_config.h b/include/mbedtls/mbedtls_config.h
+index 8fa445a..e419254 100644
+--- a/include/mbedtls/mbedtls_config.h
++++ b/include/mbedtls/mbedtls_config.h
+@@ -49,7 +49,7 @@
+  *
+  * Comment to disable the use of assembly code.
+  */
+-#define MBEDTLS_HAVE_ASM
++//#define MBEDTLS_HAVE_ASM
+ 
+ /**
+  * \def MBEDTLS_NO_UDBL_DIVISION
+@@ -77,7 +77,7 @@
+  * example, if double-width division is implemented in software, disabling
+  * it can reduce code size in some embedded targets.
+  */
+-//#define MBEDTLS_NO_UDBL_DIVISION
++#define MBEDTLS_NO_UDBL_DIVISION
+ 
+ /**
+  * \def MBEDTLS_NO_64BIT_MULTIPLICATION
+@@ -540,7 +540,7 @@
+  *
+  * Uncomment to use your own hardware entropy collector.
+  */
+-//#define MBEDTLS_ENTROPY_HARDWARE_ALT
++#define MBEDTLS_ENTROPY_HARDWARE_ALT
+ 
+ /**
+  * \def MBEDTLS_AES_ROM_TABLES
+@@ -3092,7 +3092,7 @@
+  *
+  * This module provides networking routines.
+  */
+-#define MBEDTLS_NET_C
++//#define MBEDTLS_NET_C
+ 
+ /**
+  * \def MBEDTLS_OID_C
+@@ -3129,7 +3129,7 @@
+  *
+  * This modules adds support for the VIA PadLock on x86.
+  */
+-#define MBEDTLS_PADLOCK_C
++//#define MBEDTLS_PADLOCK_C
+ 
+ /**
+  * \def MBEDTLS_PEM_PARSE_C
+diff --git a/library/Makefile b/library/Makefile
+index c85135b..747061f 100644
+--- a/library/Makefile
++++ b/library/Makefile
+@@ -185,7 +185,7 @@ OBJS_CRYPTO= \
+ 	     timing.o \
+ 	     version.o \
+ 	     version_features.o \
+-	     # This line is intentionally left blank
++     	     hardware_entropy_zos.o clock_gettime_zos.o
+ 
+ include ../3rdparty/Makefile.inc
+ LOCAL_CFLAGS+=$(THIRDPARTY_INCLUDES)
+diff --git a/library/platform_util.c b/library/platform_util.c
+index 1cab42f..6d923d7 100644
+--- a/library/platform_util.c
++++ b/library/platform_util.c
+@@ -15,6 +15,11 @@
+ #define _POSIX_C_SOURCE 200112L
+ #endif
+ 
++#ifdef __MVS__
++#include <time.h>
++int clock_gettime(int, struct timespec *tp);
++#define CLOCK_MONOTONIC 1
++#endif
+ #if !defined(_GNU_SOURCE)
+ /* Clang requires this to get support for explicit_bzero */
+ #define _GNU_SOURCE
+@@ -219,7 +224,7 @@ void (*mbedtls_test_hook_test_fail)(const char *, int, const char *);
+ #include <unistd.h>
+ #endif
+ 
+-#if (defined(_POSIX_VERSION) && _POSIX_VERSION >= 199309L) || defined(__HAIKU__)
++#if (defined(_POSIX_VERSION) && _POSIX_VERSION >= 199309L) || defined(__HAIKU__) || defined(__MVS__)
+ mbedtls_ms_time_t mbedtls_ms_time(void)
+ {
+     int ret;
+diff --git a/tests/Makefile b/tests/Makefile
+index a4c7c22..f6b7ab0 100644
+--- a/tests/Makefile
++++ b/tests/Makefile
+@@ -10,7 +10,7 @@ LOCAL_CFLAGS += -I../library
+ # Enable definition of various functions used throughout the testsuite
+ # (gethostname, strdup, fileno...) even when compiling with -std=c99. Harmless
+ # on non-POSIX platforms.
+-LOCAL_CFLAGS += -D_POSIX_C_SOURCE=200809L
++LOCAL_CFLAGS += -D_POSIX_C_SOURCE=200112L
+ 
+ ifdef RECORD_PSA_STATUS_COVERAGE_LOG
+ LOCAL_CFLAGS += -Werror -DRECORD_PSA_STATUS_COVERAGE_LOG
+diff --git a/tests/suites/test_suite_platform.function b/tests/suites/test_suite_platform.function
+index 6c967fa..2237b2c 100644
+--- a/tests/suites/test_suite_platform.function
++++ b/tests/suites/test_suite_platform.function
+@@ -1,7 +1,7 @@
+ /* BEGIN_HEADER */
+ 
+ /* This test module exercises the platform_* module. Since, depending on the
+- * underlying operating system, the time routines are not always reliable,
++ * underlyinng operating system, the time routines are not always reliable,
+  * this suite only performs very basic sanity checks of the timing API.
+  */
+ 
+@@ -20,7 +20,11 @@
+ #endif
+ static void sleep_ms(int milliseconds)
+ {
+-#if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || \
++#if defined(__MVS__)
++    int usleep(int usecs);
++#define _XOPEN_SOURCE_EXTENDED 1
++    usleep(milliseconds * 1000);
++#elif defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || \
+     defined(__MINGW32__) || defined(_WIN64)
+     Sleep(milliseconds);
+ #elif _POSIX_C_SOURCE >= 199309L
+diff --git a/tests/suites/test_suite_platform_unix.function b/tests/suites/test_suite_platform_unix.function
+index 6646815..cb6b7e4 100644
+--- a/tests/suites/test_suite_platform_unix.function
++++ b/tests/suites/test_suite_platform_unix.function
+@@ -13,8 +13,9 @@
+ 
+ #include <time.h>
+ #include <unistd.h>
++#ifndef __MVS__
+ #include <sys/time.h>
+-
++#endif
+ #else /* defined(MBEDTLS_PLATFORM_IS_UNIXLIKE) */
+ 
+ /* Constants used in the test data need to be defined even if no test
+@@ -27,7 +28,12 @@
+ #define CLOCK_MONOTONIC 0
+ 
+ #endif /* defined(MBEDTLS_PLATFORM_IS_UNIXLIKE) */
+-
++#if defined(__MVS__)
++#include <clock_gettime_zos.h>
++#define _XOPEN_SOURCE_EXTENDED 1
++#undef _ALL_SOURCE
++#include <sys/time.h>
++#endif
+ /* END_HEADER */
+ 
+ /* Note: we can't make the whole test suite depend on
+@@ -59,7 +65,11 @@ void clock_gettime_available(int clockid)
+ /* BEGIN_CASE depends_on:MBEDTLS_PLATFORM_IS_UNIXLIKE */
+ void gettimeofday_available()
+ {
++#ifdef __MVS__
++    struct timeval tv = {};
++#else    
+     struct timeval tv = { 0, 0 };
++#endif
+     memset(&tv, 0, sizeof(tv));
+     int ret = gettimeofday(&tv, NULL);
+     TEST_ASSERT_ERRNO(ret == 0);
