@@ -1,15 +1,15 @@
-# bump: mbedtls3.6.6-version /MBEDTLS3.6.6_VERSION="(.*)"/ https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls>
-# MBEDTLS3.6.6_VERSION="3.6.6"
+# bump: mbedtls-version /MBEDTLS_VERSION="(.*)"/ https://github.com/Mbed-TLS/mbedtls.git|re:/mbedtls-(3\.6\.\d+)/$1/|semver:*
+MBEDTLS_VERSION="3.6.6"
 
 ###
 ### Build control file for the mbedtls3.6.6 port
 ###
 export ZOPEN_BUILD_LINE="STABLE"
-export ZOPEN_STABLE_URL="https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-3.6.6/mbedtls-3.6.6.tar.bz2"
+export ZOPEN_STABLE_URL="https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-${MBEDTLS_VERSION}/mbedtls-${MBEDTLS_VERSION}.tar.bz2"
 export ZOPEN_STABLE_DEPS="bash check_python curl bzip2 perl check_clang coreutils make"
 release=${ZOPEN_STABLE_URL%/*}
 release=${release##*/}
-#echo "release= ${release}" 
+#echo "release= ${release}"
 # mbedtls does not use ./configure for the Makefile build.
 export ZOPEN_CONFIGURE="skip"
 
@@ -24,7 +24,6 @@ export ZOPEN_CHECK_OPTS="check CC=clang"
 # Install with make install, using zopen's install prefix.
 export ZOPEN_INSTALL="make"
 export ZOPEN_INSTALL_OPTS="install DESTDIR=\${ZOPEN_INSTALL_DIR} CC=clang"
-
 zopen_init()
 {
  
