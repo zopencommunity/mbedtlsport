@@ -24,10 +24,7 @@ export ZOPEN_CHECK_OPTS="check CC=clang"
 # Install with make install, using zopen's install prefix.
 export ZOPEN_INSTALL="make"
 export ZOPEN_INSTALL_OPTS="install DESTDIR=\${ZOPEN_INSTALL_DIR} CC=clang"
-zopen_init()
-{
- 
-}
+
 zopen_post_extract()
 {
    srcdir="$(pwd)/files"
@@ -68,7 +65,7 @@ if [ ! -z "\$ZOPEN_IN_ZOPEN_BUILD" ]; then
   export ZOPEN_EXTRA_CFLAGS="\${ZOPEN_EXTRA_CFLAGS} -I\$PWD/include"
   export ZOPEN_EXTRA_CXXFLAGS="\${ZOPEN_EXTRA_CXXFLAGS}	-I\$PWD/include"
   export ZOPEN_EXTRA_LDFLAGS="\${ZOPEN_EXTRA_LDFLAGS} -L\$PWD/lib"
-  export ZOPEN_EXTRA_LIBS="\${ZOPEN_EXTRA_LIBS}	-lbsd"
+  export ZOPEN_EXTRA_LIBS="\${ZOPEN_EXTRA_LIBS}	-lmbedcrypto -lmbedx509 -lmbedtls"
 fi
 ZZ
 }
