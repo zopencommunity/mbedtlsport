@@ -1,6 +1,5 @@
-# bump: mbedtls-version /MBEDTLS_VERSION="(.*)"/ https://github.com/Mbed-TLS/mbedtls.git|re:/mbedtls-(3\.6\.\d+)/$1/|semver:*
+# bump: mbedtls-version /MBEDTLS_VERSION="(.*)"/ https://github.com/Mbed-TLS/mbedtls.git|re:/^(?:mbedtls-|v)(3\.6\.\d+)$/$1/|semver:*
 MBEDTLS_VERSION="3.6.6"
-
 ###
 ### Build control file for the mbedtls3.6.6 port
 ###
